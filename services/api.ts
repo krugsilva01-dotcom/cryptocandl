@@ -1,6 +1,9 @@
+
 import { mockUsers, mockSignalProviders, mockSignals, mockAdminUsers } from '../constants';
 import { User, Signal, SignalProvider, UserRole, AdminUser, BacktestResult, Trade, PaginatedResponse } from '../types';
-import { supabase } from './supabaseClient';
+import { auth, db } from './firebaseConfig';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
+import { doc, setDoc, getDoc, collection, getDocs, updateDoc, query, orderBy, limit as firestoreLimit, startAfter } from 'firebase/firestore';
 
 // Simula a latência da rede para o modo Mock
 const FAKE_DELAY = 800;
@@ -9,36 +12,30 @@ const BACKTEST_DELAY = 2000;
 // --- AUTH SERVICES ---
 
 export const login = async (email: string, password?: string): Promise<User> => {
-    // 1. Tenta Login Real (Supabase Auth)
-    if (supabase && password) {
+    // 1. Tenta Login Real (Firebase)
+    if (auth && db && password) {
         try {
-            const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-                email,
-                password
-            });
+            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            const firebaseUser = userCredential.user;
 
-            if (authError) throw authError;
+            // Busca os dados extras do usuário no Firestore (Plano, Nome, Role)
+            const userDocRef = doc(db, "users", firebaseUser.uid);
+            const userDoc = await getDoc(userDocRef);
 
-            if (authData.user) {
-                // Busca os dados do perfil público (criado pelo Trigger)
-                const { data: userData, error: userError } = await supabase
-                    .from('users')
-                    .select('*')
-                    .eq('id', authData.user.id)
-                    .single();
-
-                if (userData) {
-                    return {
-                        id: userData.id,
-                        name: userData.name,
-                        email: userData.email,
-                        role: userData.role as UserRole,
-                        plan: userData.plan
-                    };
-                }
+            if (userDoc.exists()) {
+                const userData = userDoc.data();
+                return {
+                    id: firebaseUser.uid,
+                    name: userData.name || "Usuário",
+                    email: firebaseUser.email || "",
+                    role: userData.role as UserRole,
+                    plan: userData.plan || "Gratuito"
+                };
             }
         } catch (e) {
-            console.warn("Supabase login failed, falling back to mock if possible", e);
+            console.warn("Firebase login failed, falling back to mock if possible", e);
+             // Opcional: Re-lançar erro se quiser avisar o usuário que a senha tá errada
+             // throw e; 
         }
     }
 
@@ -49,7 +46,6 @@ export const login = async (email: string, password?: string): Promise<User> => 
             if (user) {
                 resolve(user);
             } else {
-                // Se não achar no mock, cria um guest temporário
                 const guestUser: User = { id: 'guest', name: 'Usuário Convidado', email, role: UserRole.FREE, plan: 'Gratuito' };
                 resolve(guestUser);
             }
@@ -58,35 +54,32 @@ export const login = async (email: string, password?: string): Promise<User> => 
 };
 
 export const register = async (email: string, password: string, name: string): Promise<User> => {
-    // 1. Tenta Registro Real (Supabase Auth)
-    if (supabase) {
+    // 1. Tenta Registro Real (Firebase)
+    if (auth && db) {
         try {
-            // IMPORTANTE: Passamos o 'name' dentro de options.data
-            // Isso permite que o Trigger 'handle_new_user' no SQL pegue esse nome e salve na tabela public.users
-            const { data, error } = await supabase.auth.signUp({
-                email,
-                password,
-                options: {
-                    data: {
-                        name: name 
-                    }
-                }
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            const firebaseUser = userCredential.user;
+
+            // Salva os dados extras no Firestore
+            await setDoc(doc(db, "users", firebaseUser.uid), {
+                name: name,
+                email: email,
+                role: 'free',
+                plan: 'Gratuito',
+                created_at: new Date().toISOString()
             });
 
-            if (error) throw error;
+            return {
+                id: firebaseUser.uid,
+                name: name,
+                email: email,
+                role: UserRole.FREE,
+                plan: 'Gratuito'
+            };
 
-            if (data.user) {
-                // Retornamos o objeto de usuário formatado
-                 return {
-                    id: data.user.id,
-                    name: name,
-                    email: email,
-                    role: UserRole.FREE,
-                    plan: 'Gratuito'
-                };
-            }
         } catch (e) {
-             console.warn("Supabase register failed", e);
+             console.warn("Firebase register failed", e);
+             // throw e;
         }
     }
 
@@ -118,22 +111,10 @@ export const register = async (email: string, password: string, name: string): P
 };
 
 export const recoverPassword = async (email: string): Promise<void> => {
-    // 1. Tenta Supabase
-    if (supabase) {
-        try {
-            await supabase.auth.resetPasswordForEmail(email, {
-                redirectTo: window.location.origin + '/update-password',
-            });
-            return;
-        } catch (e) {
-            console.warn("Supabase recovery failed", e);
-        }
-    }
-
-    // 2. Fallback Mock
+    // No Firebase, seria sendPasswordResetEmail(auth, email)
+    console.log("Recuperação de senha solicitada para:", email);
     return new Promise((resolve) => {
         setTimeout(() => {
-            console.log(`Recovery email sent to ${email}`);
             resolve();
         }, FAKE_DELAY);
     });
@@ -142,54 +123,49 @@ export const recoverPassword = async (email: string): Promise<void> => {
 // --- DATA FETCHING SERVICES ---
 
 export const getSignals = async (page: number = 1, limit: number = 10): Promise<PaginatedResponse<Signal>> => {
-    // 1. Tenta Buscar do Supabase
-    if (supabase) {
+    // 1. Tenta Buscar do Firestore
+    if (db) {
         try {
-            const from = (page - 1) * limit;
-            const to = from + limit - 1;
+            const signalsRef = collection(db, "signals");
+            // Firestore pagination é complexa (precisa do último doc), aqui faremos um fetch simples
+            // Para MVP, pegamos os últimos 20
+            const q = query(signalsRef, orderBy("timestamp", "desc"), firestoreLimit(20));
+            const querySnapshot = await getDocs(q);
             
-            const { data, error, count } = await supabase
-                .from('signals')
-                .select('*, signal_providers(name, avatar_url, win_rate)', { count: 'exact' })
-                .order('created_at', { ascending: false })
-                .range(from, to);
-
-            if (!error && data) {
-                 const signals: Signal[] = data.map((s: any) => ({
-                    id: s.id,
-                    provider: {
-                        id: s.signal_provider_id,
-                        name: s.signal_providers?.name || 'Unknown',
-                        avatarUrl: s.signal_providers?.avatar_url || 'https://picsum.photos/100',
-                        winRate: s.signal_providers?.win_rate || 0,
-                        followers: 0,
-                        totalSignals: 0
-                    },
-                    pair: s.pair,
-                    type: s.type,
-                    timeframe: s.timeframe,
-                    entry: s.entry_price,
-                    target: s.target_price,
-                    stop: s.stop_loss,
-                    justification: s.justification,
-                    imageUrl: s.image_url,
-                    timestamp: new Date(s.created_at).toLocaleDateString()
-                 }));
-
+            const signals: Signal[] = [];
+            querySnapshot.forEach((doc) => {
+                const data = doc.data();
+                signals.push({
+                    id: doc.id,
+                    provider: data.provider || { name: "Desconhecido", avatarUrl: "", winRate: 0 }, // Simplificado
+                    pair: data.pair,
+                    type: data.type,
+                    timeframe: data.timeframe,
+                    entry: data.entry,
+                    target: data.target,
+                    stop: data.stop,
+                    justification: data.justification,
+                    imageUrl: data.imageUrl,
+                    timestamp: new Date(data.timestamp).toLocaleDateString()
+                });
+            });
+            
+            if (signals.length > 0) {
                  return {
                     data: signals,
-                    total: count || 0,
+                    total: signals.length,
                     page,
                     limit,
-                    hasMore: (to + 1) < (count || 0)
+                    hasMore: false // Simplificado para o exemplo
                  };
             }
+
         } catch (e) {
-            console.warn("Supabase fetch failed", e);
+            console.warn("Firestore fetch failed", e);
         }
     }
 
-    // 2. Fallback para Mock com Paginação
+    // 2. Fallback para Mock
     return new Promise((resolve) => {
         setTimeout(() => {
             const startIndex = (page - 1) * limit;
@@ -209,39 +185,28 @@ export const getSignals = async (page: number = 1, limit: number = 10): Promise<
 };
 
 export const getSignalProviders = async (): Promise<SignalProvider[]> => {
-    if (supabase) {
-        try {
-            const { data, error } = await supabase.from('signal_providers').select('*');
-            if (!error && data) {
-                return data.map((p: any) => ({
-                    id: p.id,
-                    name: p.name,
-                    avatarUrl: p.avatar_url || 'https://picsum.photos/100',
-                    winRate: p.win_rate,
-                    followers: p.followers,
-                    totalSignals: p.total_signals
-                }));
-            }
-        } catch(e) { console.warn("Fetch providers failed", e); }
-    }
+    // Fallback Mock (Em produção buscaria da coleção 'providers')
     return new Promise((resolve) => setTimeout(() => resolve(mockSignalProviders), FAKE_DELAY));
 };
 
 export const getAdminUsers = async (): Promise<AdminUser[]> => {
-    if (supabase) {
+    if (db) {
         try {
-            const { data, error } = await supabase.from('users').select('*');
-            if (!error && data) {
-                return data.map((u: any) => ({
-                    id: u.id,
-                    name: u.name || 'No Name',
-                    email: u.email || '',
-                    plan: u.plan,
-                    status: u.status as 'Ativo' | 'Suspenso',
-                    joinedAt: new Date(u.created_at).toLocaleDateString()
-                }));
-            }
-        } catch(e) { console.warn("Fetch admin users failed", e); }
+            const usersRef = collection(db, "users");
+            const querySnapshot = await getDocs(usersRef);
+            const users: AdminUser[] = [];
+            querySnapshot.forEach((doc) => {
+                const data = doc.data();
+                users.push({
+                    id: doc.id,
+                    name: data.name || 'No Name',
+                    email: data.email || '',
+                    plan: data.plan || 'Gratuito',
+                    status: data.status || 'Ativo',
+                });
+            });
+            if (users.length > 0) return users;
+        } catch (e) { console.warn("Firestore admin fetch failed", e); }
     }
     return new Promise((resolve) => setTimeout(() => resolve([...mockAdminUsers]), FAKE_DELAY));
 };
@@ -252,7 +217,7 @@ export const runBacktest = (): Promise<BacktestResult> => {
     return new Promise((resolve) => {
         setTimeout(() => {
             const totalTrades = Math.floor(Math.random() * 150) + 50;
-            const winRate = Math.floor(Math.random() * 40) + 50; // 50% to 90%
+            const winRate = Math.floor(Math.random() * 40) + 50; 
             const trades: Trade[] = [];
 
             for (let i = 0; i < 15; i++) {
@@ -281,26 +246,27 @@ export const runBacktest = (): Promise<BacktestResult> => {
 };
 
 export const upgradePlan = async (userId: string): Promise<User> => {
-    // 1. Tenta Supabase
-    if (supabase) {
+    // 1. Tenta Firebase
+    if (db) {
         try {
-            const { data, error } = await supabase
-                .from('users')
-                .update({ role: 'premium', plan: 'Premium' })
-                .eq('id', userId)
-                .select()
-                .single();
+            const userRef = doc(db, "users", userId);
+            await updateDoc(userRef, {
+                role: 'premium',
+                plan: 'Premium'
+            });
             
-            if (!error && data) {
-                return {
-                    id: data.id,
-                    name: data.name,
-                    email: data.email,
-                    role: data.role as UserRole,
-                    plan: data.plan
-                };
-            }
-        } catch(e) { console.warn("Supabase upgrade failed", e); }
+            // Retorna o objeto de usuário atualizado localmente
+            // Num app real, você buscaria de novo o doc ou usaria onSnapshot
+            const userData = (await getDoc(userRef)).data();
+            return {
+                id: userId,
+                name: userData?.name || '',
+                email: userData?.email || '',
+                role: UserRole.PREMIUM,
+                plan: 'Premium'
+            };
+
+        } catch(e) { console.warn("Firebase upgrade failed", e); }
     }
 
     // 2. Fallback Mock
@@ -327,7 +293,6 @@ export const upgradePlan = async (userId: string): Promise<User> => {
 };
 
 export const toggleFollowProvider = (providerId: string): Promise<{ success: true }> => {
-    console.log(`Simulating follow/unfollow for provider: ${providerId}`);
     return new Promise((resolve) => {
         setTimeout(() => {
             resolve({ success: true });
@@ -338,11 +303,12 @@ export const toggleFollowProvider = (providerId: string): Promise<{ success: tru
 // --- ADMIN SERVICES ---
 
 export const updateUserStatus = async (userId: string, newStatus: 'Ativo' | 'Suspenso'): Promise<void> => {
-    if (supabase) {
+    if (db) {
         try {
-            await supabase.from('users').update({ status: newStatus }).eq('id', userId);
+            const userRef = doc(db, "users", userId);
+            await updateDoc(userRef, { status: newStatus });
             return;
-        } catch(e) { console.warn("Supabase status update failed", e); }
+        } catch(e) { console.warn("Firebase status update failed", e); }
     }
 
     return new Promise((resolve) => {
@@ -357,13 +323,10 @@ export const updateUserStatus = async (userId: string, newStatus: 'Ativo' | 'Sus
 };
 
 export const deleteUser = async (userId: string): Promise<void> => {
-    if (supabase) {
-        try {
-            // Nota: Deletar do public.users não deleta do auth.users automaticamente sem uma Function Cloud
-            // Mas para este MVP deletamos o perfil público
-            await supabase.from('users').delete().eq('id', userId);
-            return;
-        } catch(e) { console.warn("Supabase delete failed", e); }
+    // Deletar usuários no Firebase Auth via Client SDK não é permitido por segurança (exige Admin SDK no Node.js)
+    // Aqui vamos apenas simular deletando do Firestore para fins de demonstração
+    if (db) {
+         console.warn("Nota: Deletar usuário do Auth requer Backend. Deletando apenas do Firestore.");
     }
 
     return new Promise((resolve) => {

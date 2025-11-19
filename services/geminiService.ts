@@ -1,8 +1,14 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { AnalysisResult } from '../types';
 
-// FIX: Initialize the GoogleGenAI client using the API key directly from environment variables, removing fallback logic as per guidelines.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// FIX: Initialize the GoogleGenAI client using the API key from process.env.API_KEY.
+const apiKey = process.env.API_KEY;
+
+if (!apiKey) {
+  console.warn("Gemini API Key not found. AI features will not work.");
+}
+
+const ai = new GoogleGenAI({ apiKey: apiKey || 'demo-key' });
 
 const fileToGenerativePart = async (file: File) => {
   const base64EncodedDataPromise = new Promise<string>((resolve) => {
@@ -92,10 +98,13 @@ export const analyzeChartImage = async (imageFile: File): Promise<AnalysisResult
 
     // FIX: Replaced manual string cleaning with direct JSON parsing, as `responseMimeType` guarantees a valid JSON string.
     const text = response.text;
+    if (!text) {
+        throw new Error("Failed to generate analysis content.");
+    }
     return JSON.parse(text);
 
   } catch (error) {
     console.error("Error analyzing chart image:", error);
-    throw new Error("Falha ao analisar a imagem. Verifique o console para mais detalhes.");
+    throw new Error("Falha ao analisar a imagem. Verifique sua conexão ou tente novamente.");
   }
 };
