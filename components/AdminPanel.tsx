@@ -21,7 +21,7 @@ const SimpleBarChart: React.FC<{ data: any[], bar1Key: string, bar2Key: string, 
     return (
         <div className="w-full h-full flex flex-col justify-end">
             <div className="flex justify-between items-end h-full px-2" style={{borderLeft: '1px solid #4a4a4a', borderBottom: '1px solid #4a4a4a'}}>
-                {data.map((item, index) => (
+                {data.map((item: any, index) => (
                     <div key={index} className="flex-1 flex flex-col items-center justify-end h-full group relative">
                          <div className="flex items-end h-full" style={{width: '70%'}}>
                             <div style={{ height: `${(item[bar1Key] / maxValue) * 100}%`, backgroundColor: bar1Color }} className="w-1/2 rounded-t-sm transition-opacity duration-200 group-hover:opacity-75"></div>
@@ -35,7 +35,7 @@ const SimpleBarChart: React.FC<{ data: any[], bar1Key: string, bar2Key: string, 
                 ))}
             </div>
             <div className="flex justify-between text-xs text-gray-400 px-2 mt-1">
-                 {data.map((item, index) => (
+                 {data.map((item: any, index) => (
                     <span key={index} className="flex-1 text-center">{item[xAxisKey]}</span>
                 ))}
             </div>

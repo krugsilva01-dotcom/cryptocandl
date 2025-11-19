@@ -73,7 +73,8 @@ const RealTimeChart: React.FC<RealTimeChartProps> = ({ symbol = 'BTCUSDT' }) => 
         const loadData = async () => {
             setIsLoading(true);
             const data = await getBinanceKlines(symbol, '1h');
-            candlestickSeries.setData(data);
+            // FIX: Cast data to any to resolve TypeScript error regarding compatible types for Lightweight Charts
+            candlestickSeries.setData(data as any);
             
             if(data.length > 0) {
                 const lastClose = data[data.length - 1].close;

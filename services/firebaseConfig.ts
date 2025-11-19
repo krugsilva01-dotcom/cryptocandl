@@ -4,6 +4,7 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 // Configuração do Firebase lida das variáveis de ambiente (Vercel/Local)
+// FIX: Changed to process.env to resolve type errors
 const firebaseConfig = {
   apiKey: process.env.VITE_FIREBASE_API_KEY,
   authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -17,7 +18,7 @@ let auth = null;
 let db = null;
 let app = null;
 
-// Só inicializa se a chave de API estiver presente
+// Só inicializa se a chave de API estiver presente e válida
 if (firebaseConfig.apiKey && firebaseConfig.apiKey.startsWith('AIza')) {
     try {
         app = initializeApp(firebaseConfig);

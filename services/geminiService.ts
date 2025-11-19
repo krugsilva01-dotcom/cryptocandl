@@ -1,14 +1,8 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { AnalysisResult } from '../types';
 
-// FIX: Initialize the GoogleGenAI client using the API key from process.env.API_KEY.
-const apiKey = process.env.API_KEY;
-
-if (!apiKey) {
-  console.warn("Gemini API Key not found. AI features will not work.");
-}
-
-const ai = new GoogleGenAI({ apiKey: apiKey || 'demo-key' });
+// FIX: Initialize the GoogleGenAI client using the API key from process.env (Guideline requirement)
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const fileToGenerativePart = async (file: File) => {
   const base64EncodedDataPromise = new Promise<string>((resolve) => {
