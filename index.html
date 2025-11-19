@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#111827" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>CryptoCandles AI</title>
+    <link rel="manifest" href="/manifest.json" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              'gray-900': '#121212',
+              'gray-800': '#1e1e1e',
+              'gray-700': '#2d2d2d',
+              'gray-600': '#4a4a4a',
+              'primary': '#007BFF',
+              'primary-hover': '#0056b3',
+              'success': '#28a745',
+              'danger': '#dc3545',
+            },
+            keyframes: {
+              'pulse-light': {
+                '0%, 100%': { color: '#28a745' }, // success color
+                '50%': { color: '#6ee7b7' }, // a lighter green
+              },
+              'pulse-light-red': {
+                '0%, 100%': { color: '#dc3545' }, // danger color
+                '50%': { color: '#f87171' }, // a lighter red
+              },
+              'pulse-glow-green': {
+                '0%, 100%': { boxShadow: '0 0 10px rgba(4, 120, 87, 0.2)' },
+                '50%': { boxShadow: '0 0 20px rgba(16, 185, 129, 0.5)' },
+              },
+              'pulse-glow-red': {
+                 '0%, 100%': { boxShadow: '0 0 10px rgba(220, 53, 69, 0.2)' },
+                '50%': { boxShadow: '0 0 20px rgba(220, 53, 69, 0.5)' },
+              },
+            },
+            animation: {
+              'pulse-light': 'pulse-light 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              'pulse-light-red': 'pulse-light-red 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              'pulse-glow-green': 'pulse-glow-green 2s ease-in-out infinite',
+              'pulse-glow-red': 'pulse-glow-red 2s ease-in-out infinite',
+            },
+          },
+        },
+      }
+    </script>
+  <script type="importmap">
+{
+  "imports": {
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "lightweight-charts": "https://esm.sh/lightweight-charts@4.1.1",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.39.3"
+  }
+}
+</script>
+</head>
+  <body class="bg-gray-900 text-white">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
