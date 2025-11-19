@@ -70,7 +70,7 @@ const Pricing: React.FC<PricingProps> = ({ user, onUpgrade }) => {
                     </>
                 );
             default:
-                return isCurrentUserPremium ? 'Seu Plano Atual' : 'Fazer Upgrade Agora';
+                return isCurrentUserPremium ? 'Você já é Premium' : 'Obter Acesso Vitalício';
         }
     };
 
@@ -78,21 +78,21 @@ const Pricing: React.FC<PricingProps> = ({ user, onUpgrade }) => {
         <div className="max-w-4xl mx-auto py-8 animate-fade-in">
             <div className="text-center mb-12">
                 <h1 className="text-4xl font-extrabold text-white sm:text-5xl">
-                    Planos Flexíveis para Todos os Traders
+                    Invista uma vez, lucre para sempre
                 </h1>
                 <p className="mt-4 text-xl text-gray-400">
-                    Escolha o plano que melhor se adapta às suas necessidades e eleve seu nível de trading.
+                    Sem mensalidades. Tenha acesso vitalício ao CryptoCandles AI.
                 </p>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {/* Free Plan */}
                 <div className="bg-gray-800 border border-gray-700 rounded-2xl p-8 flex flex-col hover:border-gray-500 transition-colors duration-300">
-                    <h3 className="text-2xl font-semibold">Gratuito</h3>
-                    <p className="mt-2 text-gray-400">Para começar a explorar o poder da IA.</p>
+                    <h3 className="text-2xl font-semibold">Visitante</h3>
+                    <p className="mt-2 text-gray-400">Para testar o poder da IA.</p>
                     <div className="mt-6">
-                        <span className="text-4xl font-bold">R$ 0</span>
-                        <span className="text-lg font-medium text-gray-400">/mês</span>
+                        <span className="text-4xl font-bold">Grátis</span>
+                        <span className="text-lg font-medium text-gray-400"> /sempre</span>
                     </div>
                     <ul className="mt-8 space-y-4 text-sm flex-grow">
                         {freeFeatures.map((feature, i) => (
@@ -110,14 +110,16 @@ const Pricing: React.FC<PricingProps> = ({ user, onUpgrade }) => {
                     </button>
                 </div>
 
-                {/* Premium Plan */}
+                {/* Premium Plan (Lifetime) */}
                 <div className="bg-gray-800 border-2 border-primary rounded-2xl p-8 flex flex-col relative shadow-2xl shadow-primary/10 transform hover:-translate-y-1 transition-all duration-300">
-                    <div className="absolute top-0 -translate-y-1/2 bg-primary px-4 py-1 text-sm font-semibold rounded-full shadow-lg">MAIS POPULAR</div>
-                    <h3 className="text-2xl font-semibold">Premium</h3>
-                    <p className="mt-2 text-primary">Acesso ilimitado a todas as ferramentas.</p>
+                    <div className="absolute top-0 -translate-y-1/2 bg-gradient-to-r from-yellow-500 to-yellow-600 text-white px-4 py-1 text-sm font-bold rounded-full shadow-lg flex items-center gap-1">
+                        <Lucide.Sparkles size={14} /> OFERTA VITALÍCIA
+                    </div>
+                    <h3 className="text-2xl font-semibold text-white">Premium PRO</h3>
+                    <p className="mt-2 text-primary font-medium">Acesso definitivo a todas as ferramentas.</p>
                     <div className="mt-6">
-                        <span className="text-4xl font-bold">R$ 99,90</span>
-                        <span className="text-lg font-medium text-gray-400">/mês</span>
+                        <span className="text-4xl font-bold text-white">R$ 99,90</span>
+                        <span className="text-lg font-medium text-green-400 ml-2">Pagamento Único</span>
                     </div>
                      <ul className="mt-8 space-y-4 text-sm flex-grow">
                         {premiumFeatures.map((feature, i) => (
@@ -125,21 +127,21 @@ const Pricing: React.FC<PricingProps> = ({ user, onUpgrade }) => {
                                 <div className="bg-primary/20 p-1 rounded-full">
                                     <Lucide.Check className="h-3 w-3 text-primary" />
                                 </div>
-                                <span>{feature.text}</span>
+                                <span className="text-gray-200">{feature.text}</span>
                            </li>
                         ))}
                     </ul>
                     <button 
                         onClick={handleUpgradeClick}
                         disabled={isCurrentUserPremium || paymentStatus !== 'idle'}
-                        className={`mt-8 w-full py-3 px-6 border border-transparent rounded-md text-center text-base font-medium text-white flex items-center justify-center transition-all duration-300 ${
+                        className={`mt-8 w-full py-3 px-6 border border-transparent rounded-md text-center text-base font-bold text-white flex items-center justify-center transition-all duration-300 ${
                             paymentStatus === 'success' ? 'bg-green-600 hover:bg-green-700' : 'bg-primary hover:bg-primary-hover'
                         } disabled:opacity-80 disabled:cursor-not-allowed shadow-lg hover:shadow-primary/30`}
                     >
                         {getButtonContent()}
                     </button>
-                    <p className="text-xs text-center text-gray-500 mt-3">
-                        Renovação automática. Cancele a qualquer momento.
+                    <p className="text-xs text-center text-gray-400 mt-4 flex items-center justify-center gap-1">
+                        <Lucide.Lock size={12} /> Acesso vitalício garantido. Sem taxas ocultas.
                     </p>
                 </div>
             </div>

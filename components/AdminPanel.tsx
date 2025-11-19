@@ -99,7 +99,7 @@ const AdminDashboard: React.FC = () => (
             <StatCard icon={<Lucide.Users />} title="Total de Usuários" value="12,345" change="+5.2%" />
             <StatCard icon={<Lucide.UserCheck />} title="Usuários Premium" value="1,876" change="+12.1%" />
             <StatCard icon={<Lucide.BarChart2 />} title="Análises/Dia" value="5,678" change="-1.8%" />
-            <StatCard icon={<Lucide.DollarSign />} title="Receita Mensal" value="R$ 93.612,40" change="+8.9%" />
+            <StatCard icon={<Lucide.DollarSign />} title="Receita de Vendas" value="R$ 93.612,40" change="+8.9%" />
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
              <div className="bg-gray-800 p-4 rounded-lg border border-gray-700 h-80 flex flex-col">
@@ -187,6 +187,7 @@ const UserManagement: React.FC = () => {
                             <th className="px-4 py-3">Nome</th>
                             <th className="px-4 py-3">Email</th>
                             <th className="px-4 py-3">Plano</th>
+                            <th className="px-4 py-3">Cadastro</th>
                             <th className="px-4 py-3">Status</th>
                             <th className="px-4 py-3">Ações</th>
                         </tr>
@@ -194,7 +195,7 @@ const UserManagement: React.FC = () => {
                     <tbody>
                         {loading ? (
                             <tr>
-                                <td colSpan={5} className="text-center p-8">
+                                <td colSpan={6} className="text-center p-8">
                                     <Lucide.Loader className="animate-spin h-8 w-8 mx-auto text-gray-500" />
                                 </td>
                             </tr>
@@ -208,6 +209,7 @@ const UserManagement: React.FC = () => {
                                             {user.plan}
                                         </span>
                                     </td>
+                                    <td className="px-4 py-2 text-gray-400 text-xs">{user.joinedAt || 'N/A'}</td>
                                     <td className="px-4 py-2"><span className={`px-2 py-1 rounded-full text-xs font-bold ${user.status === 'Ativo' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>{user.status}</span></td>
                                     <td className="px-4 py-2 flex gap-2">
                                         {actionLoading === user.id ? (
@@ -239,7 +241,7 @@ const UserManagement: React.FC = () => {
                         )}
                         {!loading && users.length === 0 && (
                             <tr>
-                                <td colSpan={5} className="text-center p-4 text-gray-500">Nenhum usuário encontrado.</td>
+                                <td colSpan={6} className="text-center p-4 text-gray-500">Nenhum usuário encontrado.</td>
                             </tr>
                         )}
                     </tbody>
@@ -256,7 +258,7 @@ const PlanManagement: React.FC = () => (
             <h2 className="text-xl font-bold mb-4">Gerenciar Planos</h2>
             <div className="space-y-4">
                 <div className="flex justify-between items-center">
-                    <p>Preço Plano Premium:</p>
+                    <p>Preço Plano Premium (Vitalício):</p>
                     <div className="flex items-center gap-2">
                         <input type="text" defaultValue="99.90" className="w-24 bg-gray-700 border border-gray-600 rounded-md p-1 text-right text-white" />
                         <button className="bg-primary hover:bg-primary-hover text-white px-3 py-1 rounded-md text-sm transition-colors">Salvar</button>

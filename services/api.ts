@@ -1,45 +1,55 @@
-
 import { mockUsers, mockSignalProviders, mockSignals, mockAdminUsers } from '../constants';
 import { User, Signal, SignalProvider, UserRole, AdminUser, BacktestResult, Trade, PaginatedResponse } from '../types';
 import { supabase } from './supabaseClient';
 
-// Simula a latência da rede
+// Simula a latência da rede para o modo Mock
 const FAKE_DELAY = 800;
 const BACKTEST_DELAY = 2000;
 
 // --- AUTH SERVICES ---
 
-export const login = async (email: string): Promise<User> => {
-    // 1. Tenta Login Real (Supabase)
-    if (supabase) {
+export const login = async (email: string, password?: string): Promise<User> => {
+    // 1. Tenta Login Real (Supabase Auth)
+    if (supabase && password) {
         try {
-            const { data, error } = await supabase
-                .from('users')
-                .select('*')
-                .eq('email', email)
-                .single();
+            const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+                email,
+                password
+            });
 
-            if (!error && data) {
-                return {
-                    id: data.id,
-                    name: data.name,
-                    email: data.email,
-                    role: data.role as UserRole,
-                    plan: data.plan || (data.role === 'premium' ? 'Premium' : 'Gratuito')
-                };
+            if (authError) throw authError;
+
+            if (authData.user) {
+                // Busca os dados do perfil público (criado pelo Trigger)
+                const { data: userData, error: userError } = await supabase
+                    .from('users')
+                    .select('*')
+                    .eq('id', authData.user.id)
+                    .single();
+
+                if (userData) {
+                    return {
+                        id: userData.id,
+                        name: userData.name,
+                        email: userData.email,
+                        role: userData.role as UserRole,
+                        plan: userData.plan
+                    };
+                }
             }
         } catch (e) {
-            console.warn("Supabase login failed, falling back to mock", e);
+            console.warn("Supabase login failed, falling back to mock if possible", e);
         }
     }
 
-    // 2. Fallback para Mock
+    // 2. Fallback para Mock (Demonstração)
     return new Promise((resolve) => {
         setTimeout(() => {
             const user = mockUsers.find(u => u.email === email);
             if (user) {
                 resolve(user);
             } else {
+                // Se não achar no mock, cria um guest temporário
                 const guestUser: User = { id: 'guest', name: 'Usuário Convidado', email, role: UserRole.FREE, plan: 'Gratuito' };
                 resolve(guestUser);
             }
@@ -48,21 +58,30 @@ export const login = async (email: string): Promise<User> => {
 };
 
 export const register = async (email: string, password: string, name: string): Promise<User> => {
-    // 1. Tenta Registro Real (Supabase)
+    // 1. Tenta Registro Real (Supabase Auth)
     if (supabase) {
         try {
-            const { data, error } = await supabase
-                .from('users')
-                .insert([{ email, password_hash: password, name, role: 'free', plan: 'Gratuito' }])
-                .select()
-                .single();
+            // IMPORTANTE: Passamos o 'name' dentro de options.data
+            // Isso permite que o Trigger 'handle_new_user' no SQL pegue esse nome e salve na tabela public.users
+            const { data, error } = await supabase.auth.signUp({
+                email,
+                password,
+                options: {
+                    data: {
+                        name: name 
+                    }
+                }
+            });
 
-            if (!error && data) {
+            if (error) throw error;
+
+            if (data.user) {
+                // Retornamos o objeto de usuário formatado
                  return {
-                    id: data.id,
-                    name: data.name,
-                    email: data.email,
-                    role: UserRole.FREE, // Padrão Free
+                    id: data.user.id,
+                    name: name,
+                    email: email,
+                    role: UserRole.FREE,
                     plan: 'Gratuito'
                 };
             }
@@ -81,10 +100,10 @@ export const register = async (email: string, password: string, name: string): P
                 role: UserRole.FREE,
                 plan: 'Gratuito'
             };
-            // Adiciona ao mock para a sessão atual (e pro admin ver)
+            // Adiciona ao mock para a sessão atual
             mockUsers.push(newUser);
             
-            // Adiciona ao mock do Admin também para controle imediato
+            // Adiciona ao mock do Admin para visualização imediata
             mockAdminUsers.unshift({
                 id: newUser.id,
                 name: newUser.name,
@@ -102,7 +121,9 @@ export const recoverPassword = async (email: string): Promise<void> => {
     // 1. Tenta Supabase
     if (supabase) {
         try {
-            await supabase.auth.resetPasswordForEmail(email);
+            await supabase.auth.resetPasswordForEmail(email, {
+                redirectTo: window.location.origin + '/update-password',
+            });
             return;
         } catch (e) {
             console.warn("Supabase recovery failed", e);
@@ -139,7 +160,7 @@ export const getSignals = async (page: number = 1, limit: number = 10): Promise<
                     provider: {
                         id: s.signal_provider_id,
                         name: s.signal_providers?.name || 'Unknown',
-                        avatarUrl: s.signal_providers?.avatar_url || '',
+                        avatarUrl: s.signal_providers?.avatar_url || 'https://picsum.photos/100',
                         winRate: s.signal_providers?.win_rate || 0,
                         followers: 0,
                         totalSignals: 0
@@ -187,11 +208,41 @@ export const getSignals = async (page: number = 1, limit: number = 10): Promise<
     });
 };
 
-export const getSignalProviders = (): Promise<SignalProvider[]> => {
+export const getSignalProviders = async (): Promise<SignalProvider[]> => {
+    if (supabase) {
+        try {
+            const { data, error } = await supabase.from('signal_providers').select('*');
+            if (!error && data) {
+                return data.map((p: any) => ({
+                    id: p.id,
+                    name: p.name,
+                    avatarUrl: p.avatar_url || 'https://picsum.photos/100',
+                    winRate: p.win_rate,
+                    followers: p.followers,
+                    totalSignals: p.total_signals
+                }));
+            }
+        } catch(e) { console.warn("Fetch providers failed", e); }
+    }
     return new Promise((resolve) => setTimeout(() => resolve(mockSignalProviders), FAKE_DELAY));
 };
 
-export const getAdminUsers = (): Promise<AdminUser[]> => {
+export const getAdminUsers = async (): Promise<AdminUser[]> => {
+    if (supabase) {
+        try {
+            const { data, error } = await supabase.from('users').select('*');
+            if (!error && data) {
+                return data.map((u: any) => ({
+                    id: u.id,
+                    name: u.name || 'No Name',
+                    email: u.email || '',
+                    plan: u.plan,
+                    status: u.status as 'Ativo' | 'Suspenso',
+                    joinedAt: new Date(u.created_at).toLocaleDateString()
+                }));
+            }
+        } catch(e) { console.warn("Fetch admin users failed", e); }
+    }
     return new Promise((resolve) => setTimeout(() => resolve([...mockAdminUsers]), FAKE_DELAY));
 };
 
@@ -229,7 +280,30 @@ export const runBacktest = (): Promise<BacktestResult> => {
     });
 };
 
-export const upgradePlan = (userId: string): Promise<User> => {
+export const upgradePlan = async (userId: string): Promise<User> => {
+    // 1. Tenta Supabase
+    if (supabase) {
+        try {
+            const { data, error } = await supabase
+                .from('users')
+                .update({ role: 'premium', plan: 'Premium' })
+                .eq('id', userId)
+                .select()
+                .single();
+            
+            if (!error && data) {
+                return {
+                    id: data.id,
+                    name: data.name,
+                    email: data.email,
+                    role: data.role as UserRole,
+                    plan: data.plan
+                };
+            }
+        } catch(e) { console.warn("Supabase upgrade failed", e); }
+    }
+
+    // 2. Fallback Mock
     return new Promise((resolve, reject) => {
         setTimeout(() => {
             const userIndex = mockUsers.findIndex(u => u.id === userId);
@@ -263,7 +337,14 @@ export const toggleFollowProvider = (providerId: string): Promise<{ success: tru
 
 // --- ADMIN SERVICES ---
 
-export const updateUserStatus = (userId: string, newStatus: 'Ativo' | 'Suspenso'): Promise<void> => {
+export const updateUserStatus = async (userId: string, newStatus: 'Ativo' | 'Suspenso'): Promise<void> => {
+    if (supabase) {
+        try {
+            await supabase.from('users').update({ status: newStatus }).eq('id', userId);
+            return;
+        } catch(e) { console.warn("Supabase status update failed", e); }
+    }
+
     return new Promise((resolve) => {
         setTimeout(() => {
             const userIndex = mockAdminUsers.findIndex(u => u.id === userId);
@@ -275,7 +356,16 @@ export const updateUserStatus = (userId: string, newStatus: 'Ativo' | 'Suspenso'
     });
 };
 
-export const deleteUser = (userId: string): Promise<void> => {
+export const deleteUser = async (userId: string): Promise<void> => {
+    if (supabase) {
+        try {
+            // Nota: Deletar do public.users não deleta do auth.users automaticamente sem uma Function Cloud
+            // Mas para este MVP deletamos o perfil público
+            await supabase.from('users').delete().eq('id', userId);
+            return;
+        } catch(e) { console.warn("Supabase delete failed", e); }
+    }
+
     return new Promise((resolve) => {
         setTimeout(() => {
             const userIndex = mockAdminUsers.findIndex(u => u.id === userId);
