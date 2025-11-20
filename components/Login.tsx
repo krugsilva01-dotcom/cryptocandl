@@ -142,7 +142,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, isLoggingIn }) => {
             )}
             
             <button disabled={isLoggingIn} onClick={() => handleDemoLogin('premium@test.com')} className="flex items-center gap-1 text-xs bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-white p-2 rounded-lg transition-all disabled:opacity-50 shadow-lg shadow-yellow-500/20 border border-yellow-400/20">
-                <Lucide.Crown size={12} /> Demo Premium
+                <Lucide.Crown size={12} /> Premium
             </button>
         </div>
         )}

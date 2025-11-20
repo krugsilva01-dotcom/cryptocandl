@@ -1,7 +1,10 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { AnalysisResult } from '../types';
 
-// FIX: Initialize the GoogleGenAI client using the API key from process.env (Guideline requirement)
+// Declare process to avoid TypeScript errors if @types/node is missing.
+// We must use process.env.API_KEY per @google/genai coding guidelines.
+declare const process: { env: { API_KEY: string } };
+
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const fileToGenerativePart = async (file: File) => {
@@ -27,8 +30,11 @@ const fileToGenerativePart = async (file: File) => {
 
 export const analyzeChartImage = async (imageFile: File): Promise<AnalysisResult> => {
   try {
+    if (!process.env.API_KEY) {
+        throw new Error("Chave de API do Gemini não configurada (process.env.API_KEY).");
+    }
+
     const imagePart = await fileToGenerativePart(imageFile);
-    // FIX: Simplified prompt to remove JSON structure instructions, as this is now handled by `responseSchema`.
     const prompt = `
       Você é um analista de criptomoedas especialista em padrões de velas e indicadores técnicos. Sua tarefa é analisar a imagem do gráfico de negociação fornecida.
 
@@ -59,7 +65,6 @@ export const analyzeChartImage = async (imageFile: File): Promise<AnalysisResult
          - Forneça um breve resumo de uma frase em português explicando o raciocínio para a recomendação.
       `;
 
-    // FIX: Implemented responseMimeType and responseSchema for robust, structured JSON output from the Gemini API.
     const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: { parts: [imagePart, { text: prompt }] },
@@ -90,15 +95,14 @@ export const analyzeChartImage = async (imageFile: File): Promise<AnalysisResult
         },
     });
 
-    // FIX: Replaced manual string cleaning with direct JSON parsing, as `responseMimeType` guarantees a valid JSON string.
     const text = response.text;
     if (!text) {
         throw new Error("Failed to generate analysis content.");
     }
     return JSON.parse(text);
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error analyzing chart image:", error);
-    throw new Error("Falha ao analisar a imagem. Verifique sua conexão ou tente novamente.");
+    throw new Error(error.message || "Falha ao analisar a imagem. Verifique sua conexão ou tente novamente.");
   }
 };
