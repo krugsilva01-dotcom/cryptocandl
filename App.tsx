@@ -17,10 +17,10 @@ const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<Page>('dashboard');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  const handleLogin = async (email: string) => {
+  const handleLogin = async (email: string, password?: string) => {
     setIsLoggingIn(true);
     try {
-      const user = await login(email);
+      const user = await login(email, password);
       setCurrentUser(user);
       setCurrentPage('dashboard');
     } catch (error) {

@@ -4,8 +4,8 @@ import * as Lucide from 'lucide-react';
 import { recoverPassword } from '../services/api';
 
 interface LoginProps {
-  onLogin: (email: string) => void;
-  onRegister: (name: string, email: string) => void;
+  onLogin: (email: string, password?: string) => void; // Atualizado para passar senha
+  onRegister: (name: string, email: string, password?: string) => void;
   isLoggingIn: boolean;
 }
 
@@ -56,18 +56,15 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, isLoggingIn }) => {
   // Estado para recuperação de senha
   const [recoveryStatus, setRecoveryStatus] = useState<'idle' | 'sending' | 'sent'>('idle');
 
-  // Estado para controlar o segredo do admin
-  const [secretClicks, setSecretClicks] = useState(0);
-  const [showAdminLogin, setShowAdminLogin] = useState(false);
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (isLoggingIn) return;
     
     if (authMode === 'register') {
-        onRegister(name, email);
+        onRegister(name, email, password);
     } else if (authMode === 'login') {
-        onLogin(email);
+        // Passamos a senha para validar o admin hardcoded
+        onLogin(email, password); 
     }
   };
   
@@ -87,18 +84,8 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, isLoggingIn }) => {
     if (isLoggingIn) return;
     setEmail(demoEmail);
     setPassword('password'); // mock password
-    onLogin(demoEmail);
+    onLogin(demoEmail, 'password');
   }
-
-  // Função secreta: Clicar 5 vezes no logo libera o botão de admin
-  const handleSecretTrigger = () => {
-    const newCount = secretClicks + 1;
-    setSecretClicks(newCount);
-    if (newCount >= 5) {
-        setShowAdminLogin(true);
-        setSecretClicks(0);
-    }
-  };
 
   // Reset de estados ao mudar de modo
   useEffect(() => {
@@ -115,32 +102,19 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, isLoggingIn }) => {
       <div className="absolute inset-0 bg-gray-900/80 backdrop-blur-[2px]"></div>
 
       <div className="w-full max-w-md bg-gray-800/90 backdrop-blur-md rounded-xl shadow-2xl p-8 space-y-6 border border-gray-700 z-10 shadow-black/50 animate-fade-in-up">
-        <div className="text-center select-none cursor-pointer relative" onClick={handleSecretTrigger}>
-            <div className={`transition-transform duration-300 ${secretClicks > 0 ? 'scale-110' : ''} inline-block`}>
+        <div className="text-center select-none relative">
+            <div className="inline-block">
                 <div className="bg-gray-900 p-3 rounded-full border border-gray-600 shadow-lg">
                     <Lucide.CandlestickChart className="h-10 w-10 text-primary" />
                 </div>
             </div>
           <h1 className="text-3xl font-bold text-white mt-4">CryptoCandles AI</h1>
           <p className="text-gray-400 text-sm">Domine o mercado com inteligência artificial.</p>
-          
-          {/* Admin Unlock Toast */}
-          {showAdminLogin && secretClicks === 0 && (
-            <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-purple-600 text-white text-xs px-3 py-1 rounded-full shadow-lg animate-fade-in-down flex items-center gap-1 whitespace-nowrap z-50">
-                <Lucide.Unlock size={12} /> Modo Admin Ativado
-            </div>
-          )}
         </div>
         
-        {/* Botões de Demo e Admin (Só aparecem no modo Login) */}
+        {/* Botões de Demo (Só aparecem no modo Login) */}
         {authMode === 'login' && (
         <div className="flex justify-center gap-2 animate-fade-in">
-            {showAdminLogin && (
-                <button disabled={isLoggingIn} onClick={() => handleDemoLogin('admin@cryptocandles.ai')} className="flex items-center gap-1 text-xs bg-purple-600 hover:bg-purple-700 text-white p-2 rounded-lg transition-all disabled:opacity-50 shadow-lg shadow-purple-500/20">
-                    <Lucide.Shield size={12} /> Admin
-                </button>
-            )}
-            
             <button disabled={isLoggingIn} onClick={() => handleDemoLogin('premium@test.com')} className="flex items-center gap-1 text-xs bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-white p-2 rounded-lg transition-all disabled:opacity-50 shadow-lg shadow-yellow-500/20 border border-yellow-400/20">
                 <Lucide.Crown size={12} /> Premium
             </button>
@@ -237,18 +211,19 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister, isLoggingIn }) => {
           )}
 
           <div>
-            <label className="text-sm font-medium text-gray-300 sr-only" htmlFor="email">Email</label>
+            <label className="text-sm font-medium text-gray-300 sr-only" htmlFor="email">Email ou Usuário</label>
             <div className="relative">
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                     <Lucide.Mail className="h-5 w-5 text-gray-400" />
                 </div>
+                {/* Alterado type="email" para "text" para aceitar nomes de usuário como 'admkrug' */}
                 <input
                     id="email"
-                    type="email"
+                    type="text" 
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    placeholder="E-mail"
+                    placeholder="E-mail ou Usuário"
                     className="w-full pl-10 pr-3 py-2 bg-gray-700/50 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                 />
             </div>
