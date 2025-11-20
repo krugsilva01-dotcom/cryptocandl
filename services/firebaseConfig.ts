@@ -1,11 +1,12 @@
+/// <reference types="vite/client" />
 
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
-// Access env via cast to avoid TS errors if ImportMeta interface is not properly augmented with env
-// Fallback to empty object to prevent "Cannot read properties of undefined" error
-const env = (import.meta as any).env || {};
+// Fix for Vite environment variables access
+// We use a safe access pattern to prevent crashes if env is not fully loaded
+const env = import.meta.env || {};
 
 // Configuração do Firebase lida das variáveis de ambiente (Padrão Vite)
 const firebaseConfig = {
@@ -17,12 +18,12 @@ const firebaseConfig = {
   appId: env.VITE_FIREBASE_APP_ID
 };
 
-let auth = null;
-let db = null;
-let app = null;
+let auth: any = null;
+let db: any = null;
+let app: any = null;
 
 // Só inicializa se a chave de API estiver presente e válida
-if (firebaseConfig.apiKey && firebaseConfig.apiKey.startsWith('AIza')) {
+if (firebaseConfig.apiKey && typeof firebaseConfig.apiKey === 'string' && firebaseConfig.apiKey.startsWith('AIza')) {
     try {
         app = initializeApp(firebaseConfig);
         auth = getAuth(app);
