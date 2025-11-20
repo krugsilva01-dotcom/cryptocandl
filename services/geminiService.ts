@@ -1,10 +1,8 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { AnalysisResult } from '../types';
 
-// Declare process to avoid TypeScript errors if @types/node is missing.
-// We must use process.env.API_KEY per @google/genai coding guidelines.
-declare const process: { env: { API_KEY: string } };
-
+// Initialize Gemini AI with process.env.API_KEY as per guidelines
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const fileToGenerativePart = async (file: File) => {
@@ -30,10 +28,6 @@ const fileToGenerativePart = async (file: File) => {
 
 export const analyzeChartImage = async (imageFile: File): Promise<AnalysisResult> => {
   try {
-    if (!process.env.API_KEY) {
-        throw new Error("Chave de API do Gemini não configurada (process.env.API_KEY).");
-    }
-
     const imagePart = await fileToGenerativePart(imageFile);
     const prompt = `
       Você é um analista de criptomoedas especialista em padrões de velas e indicadores técnicos. Sua tarefa é analisar a imagem do gráfico de negociação fornecida.
